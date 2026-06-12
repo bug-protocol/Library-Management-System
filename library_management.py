@@ -1,26 +1,61 @@
 from datetime import date
+
 books = {}
 collections = {}
 users = {}
 borrow_records = []
 
-# Admin Panel
+
+def get_int(prompt):
+    try:
+        return int(input(prompt))
+    except ValueError:
+        print("Invalid input. Numbers only.")
+        return None
+
+
+def display_book(book_id, book):
+    print(f"Book ID    : {book_id}")
+    print(f"Title      : {book['title']}")
+    print(f"Author     : {book['author']}")
+    print(f"Available  : {book['available']}")
+
+    if book["collection"]:
+        print(f"Collection : {book['collection']}")
+        print(f"Volume     : {book['volume']}")
+
+
 def add_book():
-    book_id = int(input("Enter Book Id: "))
 
-    if books:
-        new_id = max(books.keys()) + 1
-        if book_id != new_id:
-            print(f"Book id must be {new_id}")
+    book_id = get_int("Enter Book ID: ")
+    if book_id is None:
+        return
+
+    if not books:
+        if book_id != 1:
+            print("First Book ID must be 1.")
             return
-    
-    title = input("Enter title of the Book: ")
-    author = input("Enter the name of the Author: ")
-    collection = int(input("Is it a collection? If Yes press 1 if No press 2"))
+    else:
+        expected_id = max(books.keys()) + 1
 
-    if collection == 1:
-        collection_name = input("Enter collection Name: ")
-        volume = int(input("Enter Volume: "))
+        if book_id != expected_id:
+            print(f"Book ID must be {expected_id}")
+            return
+
+    title = input("Enter Book Title: ").strip()
+    author = input("Enter Author Name: ").strip()
+
+    collection_choice = get_int(
+        "Is this part of a collection?\n1. Yes\n2. No\nChoice: "
+    )
+
+    if collection_choice == 1:
+
+        collection_name = input("Enter Collection Name: ").strip()
+        volume = get_int("Enter Volume Number: ")
+
+        if volume is None:
+            return
 
         books[book_id] = {
             "title": title,
@@ -29,12 +64,12 @@ def add_book():
             "collection": collection_name,
             "volume": volume
         }
-        if collection_name not in collections:
-            collections[collection_name] = []
 
+        collections.setdefault(collection_name, [])
         collections[collection_name].append(book_id)
-    
-    elif collection == 2:
+
+    elif collection_choice == 2:
+
         books[book_id] = {
             "title": title,
             "author": author,
@@ -46,254 +81,319 @@ def add_book():
     else:
         print("Invalid choice.")
         return
-    
-    print("Book Added Successfully!")
+
+    print("Book added successfully.")
+
 
 def remove_book():
 
-    book_id = int(input("Enter the book ID you want to remove!"))
+    book_id = get_int("Enter Book ID to remove: ")
+
+    if book_id is None:
+        return
+
     if book_id not in books:
         print("Book not found.")
         return
 
+    if not books[book_id]["available"]:
+        print("Cannot remove an issued book.")
+        return
+
     collection_name = books[book_id]["collection"]
 
-    if collection_name is not None:
+    if collection_name:
+
         collections[collection_name].remove(book_id)
 
-        if len(collections[collection_name]) == 0:
+        if not collections[collection_name]:
             del collections[collection_name]
 
     del books[book_id]
 
     print("Book removed successfully.")
 
+
 def clear_entry():
-    book_id = int(input("Enter your Book ID: "))
-    if book_id not in books:
-        print("There is no record for this Book!")
+
+    book_id = get_int("Enter Book ID: ")
+
+    if book_id is None:
         return
-    # gotta complete this function later
-
-    remove_records = []
-    for record in borrow_records:
-        if book_id in record["book_ids"]:
-            remove_records.append(record)
-
-    for record in remove_records:
-        borrow_records.remove(record)
-
-    print("Book Entry Cleared!")
-
-# User Side Functions
-
-def receive_book():
-    user_id = int(input("Enter the User ID"))
-
-    if user_id not in users:
-        user_name = input("Enter Name of the User")
-        users[id] = {
-            "id" : user_id,
-            "name" : user_name,
-            "blocked" :False
-        }
-    if users[user_name]["blocked"]:
-        print("Sorry you are blocked from receiving any Book!")
-        return
-    
-    print("Here is the list of all the Available Books!")
-
-    if books:
-        for book_id, book in books.items():
-            if book["available"]:
-                print(f"ID: {book_id}")
-                print(f"Title: {book['title']}")
-                print(f"Author: {book['author']}")
-                print()
-    
-    else:
-        print("No Available Books!")
-
-    book_id = int(input("Enter the Book ID: "))
 
     if book_id not in books:
         print("Book not found.")
         return
-    
-    collection_name = books[book_id]["collction"]
-    if collection_name is not None:
-        book_collection = collections[collection_name]
 
-        for find_book in book_collection:
-            if not books[find_book]["available"]:
-                print("Collection is not available.")
+    records_to_remove = []
+
+    for record in borrow_records:
+        if book_id in record["book_ids"]:
+            records_to_remove.append(record)
+
+    for record in records_to_remove:
+
+        for issued_book in record["book_ids"]:
+            if issued_book in books:
+                books[issued_book]["available"] = True
+
+        borrow_records.remove(record)
+
+    print("Entry cleared successfully.")
+
+
+def view_issued_books():
+
+    active_records = [
+        record
+        for record in borrow_records
+        if record["return_date"] is None
+    ]
+
+    if not active_records:
+        print("No books currently issued.")
+        return
+
+    print("\nCURRENTLY ISSUED BOOKS\n")
+
+    for record in active_records:
+        print(f"User ID    : {record['user_id']}")
+        print(f"User Name  : {record['user']}")
+        print(f"Books      : {record['book_ids']}")
+        print(f"Issue Date : {record['issue_date']}")
+
+
+def receive_book():
+
+    user_id = get_int("Enter User ID: ")
+
+    if user_id is None:
+        return
+
+    if user_id not in users:
+
+        name = input("Enter User Name: ")
+
+        users[user_id] = {
+            "id": user_id,
+            "name": name,
+            "blocked": False
+        }
+
+    user = users[user_id]
+
+    if user["blocked"]:
+        print("You are blocked from borrowing books.")
+        return
+
+    print("\nAVAILABLE BOOKS\n")
+
+    available_found = False
+
+    for book_id, book in books.items():
+        if book["available"]:
+            available_found = True
+            display_book(book_id, book)
+
+    if not available_found:
+        print("No books available.")
+        return
+
+    selected_book = get_int("Enter Book ID: ")
+
+    if selected_book is None:
+        return
+
+    if selected_book not in books:
+        print("Book not found.")
+        return
+
+    collection_name = books[selected_book]["collection"]
+
+    if collection_name:
+
+        collection_books = sorted(
+            collections[collection_name],
+            key=lambda x: books[x]["volume"]
+        )
+
+        for book_id in collection_books:
+            if not books[book_id]["available"]:
+                print("Entire collection is not available.")
                 return
-            
-        for find_book in book_collection:
-            books[find_book]["available"] = False
+
+        for book_id in collection_books:
+            books[book_id]["available"] = False
 
         borrow_records.append({
-            "user_id":user_id,
-            "user": user_name,
-            "book_ids": book_collection,
+            "user_id": user_id,
+            "user": user["name"],
+            "book_ids": collection_books.copy(),
             "issue_date": date.today(),
             "return_date": None
         })
 
         print(f"Collection '{collection_name}' issued successfully.")
-    
+
     else:
 
-        if not books[book_id]["available"]:
+        if not books[selected_book]["available"]:
             print("Book is not available.")
             return
 
-        books[book_id]["available"] = False
+        books[selected_book]["available"] = False
 
         borrow_records.append({
-            "user_id" : user_id,
-            "user": user_name,
-            "book_ids": [book_id],
+            "user_id": user_id,
+            "user": user["name"],
+            "book_ids": [selected_book],
             "issue_date": date.today(),
             "return_date": None
         })
 
         print("Book issued successfully.")
 
-def view_issued_books():
-    issued_books = []
-    for record in borrow_records:
-        if (record["return_date"] is None and (date.today() - record["issue_date"]).days > 14):
-            issued_books.append(record)
-    if not issued_books:
-        print("No Book has been issued yet!")
-    for all_book in issued_books:
-        print(all_book)
 
 def return_book():
-    user_id = int(input("Enter the User ID"))
-    if user_id not in users:
-        print("User not Found!")
+
+    user_id = get_int("Enter User ID: ")
+
+    if user_id is None:
         return
-    
+
+    if user_id not in users:
+        print("User not found.")
+        return
+
     active_records = []
+
     for record in borrow_records:
-        if (record["user_id"] == user_id and record["return_date"] is None):
-           active_records.append(record)
+        if (
+            record["user_id"] == user_id
+            and record["return_date"] is None
+        ):
+            active_records.append(record)
 
     if not active_records:
-        print("No issue record found for this user!")
+        print("No issued books found.")
         return
-    
-    print("\n Issued Books!")
+
+    print("\nISSUED BOOKS\n")
+
     for record in active_records:
         for book_id in record["book_ids"]:
             print(f"{book_id} - {books[book_id]['title']}")
 
-    selected_book_id = int(
-        input("\nEnter Book ID to return: ")
+    selected_book = get_int(
+        "\nEnter Book ID to return: "
     )
+
+    if selected_book is None:
+        return
 
     target_record = None
 
     for record in active_records:
-        if selected_book_id in record["book_ids"]:
+        if selected_book in record["book_ids"]:
             target_record = record
             break
 
     if target_record is None:
-        print("This book is not issued to the user!")
+        print("This book is not issued to the user.")
         return
-    
-    borrow_days = (date.today() - target_record["issue_date"]).days
+
+    borrow_days = (
+        date.today() - target_record["issue_date"]
+    ).days
 
     target_record["return_date"] = date.today()
 
-    if borrow_days > 14:
-        users[user_id]["blocked"] = True
-        print("User has returned late. Hence Blocked!")
-
     for book_id in target_record["book_ids"]:
         books[book_id]["available"] = True
-    
-def search_by_title():
-    search_text = input("Enter title or substring!").lower()
 
-    found_books = False
+    if borrow_days > 14:
+        users[user_id]["blocked"] = True
+        print("Returned late. User has been blocked.")
+
+    print("Book returned successfully.")
+
+
+def search_by_title():
+
+    title = input(
+        "Enter title or partial title: "
+    ).lower()
+
+    found = False
 
     for book_id, book in books.items():
-        if search_text in book["title"].lower():
-            found_books = True
 
-            print(
-                f"Book ID: {book_id}"
-            )
-            print(
-                f"Title: {book['title']}"
-            )
-            print(
-                f"Author: {book['author']}"
-            )
-            print()
+        if title in book["title"].lower():
+            display_book(book_id, book)
+            found = True
 
-    if found_books == False:
-        print("No Matching Books Found!")
+    if not found:
+        print("No matching books found.")
+
 
 def search_by_author():
-    author_search = input("Enter the name of the Author! ").lower()
 
-    found_author = False
+    author = input(
+        "Enter author name: "
+    ).lower()
 
-    for book_id, book in book.items():
-        if author_search in book["author"].lower():
-            found_author = True
+    found = False
 
-            print(
-                f"Book ID: {book_id}"
-            )
-            print(
-                f"Title: {book['title']}"
-            )
-            print(
-                f"Author: {book['author']}"
-            )
-            print()
+    for book_id, book in books.items():
 
-    if found_author == False:
-        print("No Matching Author Found!")
+        if author in book["author"].lower():
+            display_book(book_id, book)
+            found = True
 
+    if not found:
+        print("No matching authors found.")
 
 def user_menu():
+
     while True:
-        print("\n User Menu")
+
+        print("\nUSER MENU")
         print("1. Receive Book")
         print("2. Return Book")
-        print("3. Search Book By Title")
-        print("4. Search Book By Author")
+        print("3. Search By Title")
+        print("4. Search By Author")
         print("5. Back")
 
-        choice = int(input("Enter your choice: "))
+        choice = input("Enter choice: ")
 
-        if choice == 1:
+        if choice == "1":
             receive_book()
-        elif choice == 2:
+
+        elif choice == "2":
             return_book()
-        elif choice == 3:
+
+        elif choice == "3":
             search_by_title()
-        elif choice == 4:
+
+        elif choice == "4":
             search_by_author()
-        elif choice == 5:
+
+        elif choice == "5":
             break
+
         else:
-            print("Invalid Choice")
+            print("Invalid choice.")
+
 
 def admin_menu():
+
     while True:
+
         print("\nADMIN MENU")
         print("1. Add Book")
         print("2. Remove Book")
         print("3. Clear Entry")
-        print("4. View Borrowed Books")
+        print("4. View Issued Books")
         print("5. Back")
 
         choice = input("Enter choice: ")
@@ -314,21 +414,32 @@ def admin_menu():
             break
 
         else:
-            print("Invalid choice")
+            print("Invalid choice.")
 
-while True:
-    print("\n LIBRARY MANAGEMENT SYSTEM")
-    print("Press 1 for Admin")
-    print("Press 2 for User")
-    print("Press 3 for Exit")
+def main():
 
-    choice = input("Enter your choice: ")
+    while True:
 
-    if choice == "1":
-        admin_menu()
-    elif choice == "2":
-        pass
-    elif choice == "3":
-        break
-    else:
-        print("Invalid Choice: ")
+
+        print("LIBRARY MANAGEMENT SYSTEM")
+
+        print("1. Admin")
+        print("2. User")
+        print("3. Exit")
+
+        choice = input("Enter choice: ")
+
+        if choice == "1":
+            admin_menu()
+
+        elif choice == "2":
+            user_menu()
+
+        elif choice == "3":
+            print("Thank you for using LMS.")
+            break
+
+        else:
+            print("Invalid choice.")
+
+main()
