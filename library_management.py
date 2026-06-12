@@ -27,7 +27,7 @@ def display_book(book_id, book):
 
 def add_book():
 
-    book_id = get_int("Enter Book ID: ")
+    book_id = int(input("Enter Book ID: "))
     if book_id is None:
         return
 
@@ -154,7 +154,7 @@ def view_issued_books():
         print("No books currently issued.")
         return
 
-    print("\nCURRENTLY ISSUED BOOKS\n")
+    print("CURRENTLY ISSUED BOOKS\n")
 
     for record in active_records:
         print(f"User ID    : {record['user_id']}")
@@ -268,10 +268,7 @@ def return_book():
     active_records = []
 
     for record in borrow_records:
-        if (
-            record["user_id"] == user_id
-            and record["return_date"] is None
-        ):
+        if (record["user_id"] == user_id and record["return_date"] is None):
             active_records.append(record)
 
     if not active_records:
@@ -284,9 +281,7 @@ def return_book():
         for book_id in record["book_ids"]:
             print(f"{book_id} - {books[book_id]['title']}")
 
-    selected_book = get_int(
-        "\nEnter Book ID to return: "
-    )
+    selected_book = get_int("\nEnter Book ID to return: ")
 
     if selected_book is None:
         return
@@ -302,9 +297,7 @@ def return_book():
         print("This book is not issued to the user.")
         return
 
-    borrow_days = (
-        date.today() - target_record["issue_date"]
-    ).days
+    borrow_days = (date.today() - target_record["issue_date"]).days
 
     target_record["return_date"] = date.today()
 
@@ -320,9 +313,7 @@ def return_book():
 
 def search_by_title():
 
-    title = input(
-        "Enter title or partial title: "
-    ).lower()
+    title = input("Enter title or partial title: ").lower()
 
     found = False
 
